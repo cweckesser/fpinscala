@@ -74,36 +74,97 @@ object List: // `List` companion object. Contains functions for creating and wor
     case Cons(_, Nil) => Nil
     case Cons(h, t) => Cons(h, init(t))
 
-  def length[A](l: List[A]): Int = ???
+  def length[A](l: List[A]): Int =
+    foldRight(l, 0, (_, acc) => acc + 1)
 
-  def foldLeft[A,B](l: List[A], acc: B, f: (B, A) => B): B = ???
+  @annotation.tailrec
+  def foldLeft[A,B](l: List[A], acc: B, f: (B, A) => B): B = l match
+    case Nil => acc
+    case Cons(h, t) => foldLeft(t, f(acc, h), f)
 
-  def sumViaFoldLeft(ns: List[Int]): Int = ???
+  def sumViaFoldLeft(ns: List[Int]): Int = foldLeft(ns, 0, _ + _)
 
-  def productViaFoldLeft(ns: List[Double]): Double = ???
+  def productViaFoldLeft(ns: List[Double]): Double = foldLeft(ns, 1, _ * _)
 
-  def lengthViaFoldLeft[A](l: List[A]): Int = ???
+  def lengthViaFoldLeft[A](l: List[A]): Int = foldLeft(l, 0, (acc, _) => acc + 1)
 
-  def reverse[A](l: List[A]): List[A] = ???
+  def reverse[A](l: List[A]): List[A] = foldLeft(l, List[A](), (acc, x) => Cons(x, acc))
 
-  def appendViaFoldRight[A](l: List[A], r: List[A]): List[A] = ???
+  def appendViaFoldRight[A](l: List[A], r: List[A]): List[A] = foldRight(l, r, Cons(_, _))
 
-  def concat[A](l: List[List[A]]): List[A] = ???
+  def concat[A](l: List[List[A]]): List[A] = foldLeft(
+    l,
+    List[A](),
+    (acc, listA) => listA match
+      case Nil => acc
+      case cons @ Cons(_, _) => append(acc, cons)
+  )
 
-  def incrementEach(l: List[Int]): List[Int] = ???
+  def incrementEach(l: List[Int]): List[Int] = foldLeft(
+    l,
+    List[Int](),
+    (acc, integer) => append(acc, Cons(integer + 1, Nil))
+  )
 
-  def doubleToString(l: List[Double]): List[String] = ???
+  def doubleToString(l: List[Double]): List[String] = foldLeft(
+    l,
+    List[String](),
+    (acc, double) => append(acc, Cons(double.toString(), Nil))
+  )
 
-  def map[A,B](l: List[A], f: A => B): List[B] = ???
+  def map[A,B](l: List[A], f: A => B): List[B] = foldLeft(
+    l,
+    List[B](),
+    (acc, a) => append(acc, Cons(f(a), Nil))
+  )
 
-  def filter[A](as: List[A], f: A => Boolean): List[A] = ???
+  def filter[A](as: List[A], f: A => Boolean): List[A] = foldLeft(
+    as,
+    List[A](),
+    (acc, a) =>
+      if f(a) then append(acc, Cons(a, Nil))
+      else acc
+  )
 
-  def flatMap[A,B](as: List[A], f: A => List[B]): List[B] = ???
+  def flatMap[A,B](as: List[A], f: A => List[B]): List[B] = foldLeft(
+    as,
+    List[B](),
+    (acc, a) => append(acc, f(a))
+  )
 
-  def filterViaFlatMap[A](as: List[A], f: A => Boolean): List[A] = ???
+  def filterViaFlatMap[A](as: List[A], f: A => Boolean): List[A] =
+    flatMap(as, (a) => if f(a) then Cons(a, Nil) else Nil)
 
-  def addPairwise(a: List[Int], b: List[Int]): List[Int] = ???
+  def addPairwise(a: List[Int], b: List[Int]): List[Int] = (a, b) match {
+    case (Nil, _) => Nil
+    case (_, Nil) => Nil
+    case (Cons(aHead, aTail), Cons(bHead, bTail)) => Cons(aHead + bHead, addPairwise(aTail, bTail))
+  }
+
+  def addPairwise2(a: List[Int], b: List[Int]): List[Int] = addPairwiseGeneric(a, b, _ + _)
+
+  def addPairwiseGeneric[A, B](a1: List[A], a2: List[A], f: (A, A) => B): List[B] = (a1, a2) match {
+    case (Nil, _) => Nil
+    case (_, Nil) => Nil
+    case (Cons(a1Head, a1Tail), Cons(a2Head, a2Tail)) =>
+      Cons(f(a1Head, a2Head), addPairwiseGeneric(a1Tail, a2Tail, f))
+  }
 
   // def zipWith - TODO determine signature
 
-  def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = ???
+  @annotation.tailrec
+  def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = (sup, sub) match {
+    case (Cons(supH, supT), Cons(subH, subT)) =>
+      if supH == subH then hasSubsequence(supT, subT)
+      else hasSubsequence(supT, sub)
+    case (Nil, Cons(_, _)) => false
+    case (_, _) => true
+  }
+
+  // @annotation.tailrec
+  def foldRightViaFoldLeft[A,B](as: List[A], acc: B, f: (A, B) => B): B =
+    foldLeft(as, acc, (b: B, a: A) => f(a, b))
+
+  // @annotation.tailrec
+  def foldLeftViaFoldRight[A,B](l: List[A], acc: B, f: (B, A) => B): B =
+    foldRight(l, acc, (a: A, b: B) => f(b, a))

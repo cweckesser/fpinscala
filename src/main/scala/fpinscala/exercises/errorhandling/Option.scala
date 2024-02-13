@@ -7,15 +7,44 @@ enum Option[+A]:
   case Some(get: A)
   case None
 
-  def map[B](f: A => B): Option[B] = ???
+  // Usage: transforms the encapsulated value
+  def map[B](f: A => B): Option[B] = this match {
+    case Some(value) => Some(f(value))
+    case None => None
+  }
 
-  def getOrElse[B>:A](default: => B): B = ???
+  // Usage: retrieves the encapsulated value or a default one if the first is not defined
+  def getOrElse[B>:A](default: => B): B = this match {
+    case Some(value) => value
+    case None => default
+  }
 
-  def flatMap[B](f: A => Option[B]): Option[B] = ???
+  // Usage: transforms the encapsulated value without deeply-nesting the containerized value
+  def flatMap[B](f: A => Option[B]): Option[B] = this match {
+    case Some(value) => f(value)
+    case None => None
+  }
 
-  def orElse[B>:A](ob: => Option[B]): Option[B] = ???
+  // Usage: retrieves the encapsulated value within its container or a default value, containerized
+  def orElse[B>:A](ob: => Option[B]): Option[B] = this match {
+    case Some(_) => this
+    case None => ob
+  }
 
-  def filter(f: A => Boolean): Option[A] = ???
+  // Usage: determine whether the encapsulated value meets a condition
+  def filter(f: A => Boolean): Option[A] = this match {
+    case Some(value) => if f(value) then this else None
+    case None => None
+  }
+
+  // flatMap via map and getOrElse
+  def flatMap2[B](f: A => Option[B]): Option[B]  = map(f).getOrElse(None)
+
+  // orElse via map and getOrElse
+  def orElse2[B>:A](ob: => Option[B]): Option[B] = map(a => Some(a)).getOrElse(ob)
+
+  // filter via map and getOrElse
+  def filter2(f: A => Boolean): Option[A] = if map(f).getOrElse(false) then this else None
 
 object Option:
 
@@ -36,10 +65,28 @@ object Option:
     if xs.isEmpty then None
     else Some(xs.sum / xs.length)
 
-  def variance(xs: Seq[Double]): Option[Double] = ???
+  def variance(xs: Seq[Double]): Option[Double] = {
+    val meanValue = mean(xs)
 
-  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = ???
+    val variance = meanValue.flatMap(m => {
+      val squaredSpreads = xs.map(x => Math.pow(x - m, 2))
+      mean(squaredSpreads)
+    })
 
-  def sequence[A](as: List[Option[A]]): Option[List[A]] = ???
+    variance
+  }
 
-  def traverse[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] = ???
+  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = (a, b) match {
+    case (someA: Some[A], someB: Some[B]) => Some(f(someA.get, someB.get))
+    case _ => None
+  }
+
+  def sequence[A](as: List[Option[A]]): Option[List[A]] = as match {
+    case Nil => Some(Nil)
+    case head :: next => head.flatMap((headValue) => sequence(next).map(headValue :: _))
+  }
+
+  def traverse[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] = as match {
+    case Nil => Some(Nil)
+    case head :: next => f(head).flatMap(fHead => traverse(next)(f).map(fHead :: _))
+  }
