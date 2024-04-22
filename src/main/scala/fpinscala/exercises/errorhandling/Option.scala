@@ -2,6 +2,7 @@ package fpinscala.exercises.errorhandling
 
 // Hide std library `Option` since we are writing our own in this chapter
 import scala.{Option as _, Some as _, None as _}
+import scala.annotation.tailrec
 
 enum Option[+A]:
   case Some(get: A)

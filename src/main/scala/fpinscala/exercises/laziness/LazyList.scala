@@ -127,23 +127,32 @@ enum LazyList[+A]:
       case (_, _) => false
 
   def tails: LazyList[LazyList[A]] =
-    val unfoldedList = LazyList.unfold(this)
+    val unfoldedList = LazyList.unfold[LazyList[A], LazyList[A]](this)
       (
         a => a match
-          case Cons(h, t) => Some(Cons(h, t), t())
+          case Cons(h, t) => Some((Cons(h, t), t()))
           case Empty => None
       )
-    val result = unfoldedList.append(LazyList.empty)
-    System.out.println("result -> " + result)
-    result
+    unfoldedList.append(LazyList(Empty))
 
+  /**
+    * This implementation works but its time is not linear!
+    *
+    * @param acc
+    * @param f
+    * @return
+    */
   def scanRight[B](acc: B)(f: (A, => B) => B): LazyList[B] =
-    LazyList.unfold(this)
-      (
-        a => a match
-          case Cons(h, t) => Some((f(h(), acc), t()))
-          case Empty => None
-      )
+    println("--- START ---")
+    val res = foldRight[(B, LazyList[B])]((acc, LazyList(acc)))(
+      (a, z) =>
+        val fA = f(a, z._1)
+        println(s"a -> $a / f(a) -> $fA / z._1: B -> ${z._1} / z._2 -> ${z._2.toList}")
+        (fA, LazyList.cons(fA, z._2))
+    )._2
+    println(s" RESULT -> ${res.toList}")
+    println("--- END ---")
+    res
     
 
 object LazyList:

@@ -28,9 +28,8 @@ object RNG:
 
   def nonNegativeInt(rng: RNG): (Int, RNG) = rng.nextInt match
     case (n2: Int, rng2: RNG) if n2 == Int.MinValue => (Int.MaxValue, rng2)
-    case (n2: Int, rng2: RNG) if n2 < 0 => (-n2, rng2)
+    case (n2: Int, rng2: RNG) if n2 < 0 => (-n2 + 1, rng2)
     case (n2: Int, rng2: RNG) => (n2, rng2)
-  
 
   def double(rng: RNG): (Double, RNG) =
     val (n2, rng2) = nonNegativeInt(rng)
@@ -60,7 +59,8 @@ object RNG:
         rec(n - 1, nextRng, nextVal :: l)
     rec(count, rng, List.empty)
 
-  def doubleViaMap: Rand[Double] =
+  // doubleViaMap
+  def _double: Rand[Double] =
     map(nonNegativeInt)(n => n.toDouble / Int.MaxValue.toDouble)
 
   def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = rng =>
@@ -77,11 +77,21 @@ object RNG:
           rec(next, r2, value :: l)
       rec(rs, rng, List.empty)
 
-  def flatMap[A, B](r: Rand[A])(f: A => Rand[B]): Rand[B] = ???
+  def flatMap[A, B](r: Rand[A])(f: A => Rand[B]): Rand[B] =
+    rng =>
+      val (a, rng2) = r(rng)
+      f(a)(rng2)
 
-  def mapViaFlatMap[A, B](r: Rand[A])(f: A => B): Rand[B] = ???
+  def mapViaFlatMap[A, B](r: Rand[A])(f: A => B): Rand[B] =
+    rng =>
+      val (a, rng2) = r(rng)
+      (f(a), rng2)
 
-  def map2ViaFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+  def map2ViaFlatMap[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    rng =>
+      val (a, rng2) = ra(rng)
+      val (b, rng3) = rb(rng2)
+      (f(a, b), rng3)
 
 opaque type State[S, +A] = S => (A, S)
 
@@ -89,21 +99,54 @@ object State:
   extension [S, A](underlying: State[S, A])
     def run(s: S): (A, S) = underlying(s)
 
-    def map[B](f: A => B): State[S, B] =
-      ???
+    def map[B](f: A => B): State[S, B] = s =>
+      val (a, s2) = run(s)
+      (f(a), s2)
 
-    def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] =
-      ???
+    def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] = sa =>
+      val (a, sa2) = run(sa)
+      val (b, sb2) = sb(sa2)
+      (f(a, b), sb2)
 
-    def flatMap[B](f: A => State[S, B]): State[S, B] =
-      ???
+    def flatMap[B](f: A => State[S, B]): State[S, B] = s =>
+      val (a, s2) = run(s)
+      f(a)(s2)
 
   def apply[S, A](f: S => (A, S)): State[S, A] = f
+
+  def unit[S, A](a: A): State[S, A] = s => (a, s)
+
+  def sequence[S, A](states: List[State[S, A]]): State[S, List[A]] = initialState =>
+    def rec[A](remainingStates: List[State[S, A]], nextState: S, l: List[A]): (List[A], S) = remainingStates match
+      case Nil => (l.reverse, nextState) // <- Reversing list here, because the test assumes the usage of foldRight
+      case head :: tail =>
+        val (value, nextState2) = head(nextState)
+        rec(tail, nextState2, value :: l)
+    rec(states, initialState, List.empty)
+
+  def modify[S](f: S => S): State[S, Unit] =
+    for
+      s <- get
+      _ <- set(f(s))
+    yield ()
+
+  def get[S]: State[S, S] = s => (s, s)
+
+  def set[S](s: S): State[S, Unit] = _ => ((), s)
 
 enum Input:
   case Coin, Turn
 
 case class Machine(locked: Boolean, candies: Int, coins: Int)
 
+// opaque type State[S, +A] = S => (A, S)
+
 object Candy:
-  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = ???
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
+    (s: Machine) => ((0, 0), s)
+    // (s: Machine) =>
+    //   inputs match
+    //     case head :: next => head match
+    //       case Input.Coin =>
+    //       case Input.Turn => State.get
+    //     case Nil => State.get
