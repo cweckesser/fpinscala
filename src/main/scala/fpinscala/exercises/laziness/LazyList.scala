@@ -146,9 +146,10 @@ enum LazyList[+A]:
     println("--- START ---")
     val res = foldRight[(B, LazyList[B])]((acc, LazyList(acc)))(
       (a, z) =>
-        val fA = f(a, z._1)
-        println(s"a -> $a / f(a) -> $fA / z._1: B -> ${z._1} / z._2 -> ${z._2.toList}")
-        (fA, LazyList.cons(fA, z._2))
+        lazy val lazyZ = z
+        val fA = f(a, lazyZ._1)
+        println(s"a -> $a / f(a) -> $fA / z._1: B -> ${lazyZ._1} / z._2 -> ${lazyZ._2.toList}")
+        (fA, LazyList.cons(fA, lazyZ._2))
     )._2
     println(s" RESULT -> ${res.toList}")
     println("--- END ---")
