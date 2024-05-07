@@ -136,24 +136,20 @@ enum LazyList[+A]:
     unfoldedList.append(LazyList(Empty))
 
   /**
-    * This implementation works but its time is not linear!
-    *
     * @param acc
     * @param f
     * @return
     */
   def scanRight[B](acc: B)(f: (A, => B) => B): LazyList[B] =
-    println("--- START ---")
-    val res = foldRight[(B, LazyList[B])]((acc, LazyList(acc)))(
+    // println("---")
+    foldRight[(B, LazyList[B])]((acc, LazyList(acc)))(
       (a, z) =>
-        lazy val lazyZ = z
+        // Since "z" is passed by name, we need to re-assign it to keep it from being evaluated more than once when referenced below
+        val lazyZ = z
         val fA = f(a, lazyZ._1)
-        println(s"a -> $a / f(a) -> $fA / z._1: B -> ${lazyZ._1} / z._2 -> ${lazyZ._2.toList}")
-        (fA, LazyList.cons(fA, lazyZ._2))
+        // println(s"a -> $a / f(a) -> $fA / z._1: B -> ${lazyZ._1} / z._2 -> ${lazyZ._2.toList}")
+        (f(a, lazyZ._1), LazyList.cons(f(a, lazyZ._1), lazyZ._2))
     )._2
-    println(s" RESULT -> ${res.toList}")
-    println("--- END ---")
-    res
     
 
 object LazyList:

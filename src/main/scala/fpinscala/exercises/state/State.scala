@@ -139,14 +139,18 @@ enum Input:
 
 case class Machine(locked: Boolean, candies: Int, coins: Int)
 
-// opaque type State[S, +A] = S => (A, S)
-
 object Candy:
   def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
-    (s: Machine) => ((0, 0), s)
-    // (s: Machine) =>
-    //   inputs match
-    //     case head :: next => head match
-    //       case Input.Coin =>
-    //       case Input.Turn => State.get
-    //     case Nil => State.get
+    for {
+      // The following is the "traverse" implementation. In this case, since the "modify" function does not return a produced value
+      // because it only modifies the underlying state, so the list of "traversed" values is disregarded (by keeping a list of "Unit")
+      _ <- inputs.foldRight(State.unit[Machine, List[Unit]](Nil))((i, acc) => State.modify(processInput(i)).map2(acc)(_ :: _))
+      s <- State.get
+    } yield ((s.coins, s.candies))
+
+  val processInput = (i: Input) => (m: Machine) => (i, m) match
+    case (_, Machine(_, 0, _)) => m
+    case (Input.Coin, Machine(false, _, _)) => m
+    case (Input.Turn, Machine(true, _, _)) => m
+    case (Input.Coin, Machine(true, candies, coins)) => Machine(false, candies, coins +1)
+    case (Input.Turn, Machine(false, candies, coins)) => Machine(true, candies -1, coins)
